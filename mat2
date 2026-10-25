@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __lazy_modules__ = ["libmat2"]
 
+import re
 import os
 import shutil
 import sys
@@ -59,6 +60,8 @@ def create_arg_parser() -> argparse.ArgumentParser:
                         help='how to handle unknown members of archive-style '
                         'files (policy should be one of: %s) [Default: abort]' %
                         ', '.join(p.value for p in UnknownMemberPolicy))
+    parser.add_argument('--exclude', dest="exclude_pattern", metavar='pattern',
+                        default='', help='exclude files with a regex pattern')
     parser.add_argument('--inplace', action='store_true',
                         help='clean in place, without backup')
     parser.add_argument('--no-sandbox', dest='sandbox', action='store_true',
@@ -209,6 +212,10 @@ def main() -> int:
 
     elif args.show:
         for f in __get_files_recursively(args.files):
+            if args.exclude_pattern:
+                if re.search(args.exclude_pattern, f):
+                    continue
+
             show_meta(f)
         return 0
 
@@ -225,6 +232,10 @@ def main() -> int:
         futures = list()
         with concurrent.futures.ProcessPoolExecutor() as executor:
             for f in files:
+                if args.exclude_pattern:
+                    if re.search(args.exclude_pattern, f):
+                        continue
+
                 future = executor.submit(clean_meta, f, args.lightweight,
                                          inplace, policy)
                 futures.append(future)
